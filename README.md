@@ -12,7 +12,9 @@ Scalable Muscle-actuated Human Simulation and Control,
 ACM Transactions on Graphics (SIGGRAPH 2019), Volume 37, Article 73. 
 
 Project Page : http://mrl.snu.ac.kr/research/ProjectScalable/Page.htm
+
 Youtube : https://youtu.be/a3jfyJ9JVeM
+
 Paper : http://mrl.snu.ac.kr/research/ProjectScalable/Paper.pdf
 
 ## How to install
