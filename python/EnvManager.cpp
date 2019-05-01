@@ -14,7 +14,7 @@ EnvManager(int num_envs)
 
 		env->SetUseMuscle(false);
 		env->SetControlHz(30);
-		env->SetSimulationHz(450);
+		env->SetSimulationHz(600);
 		env->SetRewardParameters(0.65,0.1,0.15,0.1);
 
 		MASS::Character* character = new MASS::Character();

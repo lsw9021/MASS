@@ -15,7 +15,7 @@ int main(int argc,char** argv)
 	else
 		env->SetUseMuscle(false);
 	env->SetControlHz(30);
-	env->SetSimulationHz(450);
+	env->SetSimulationHz(600);
 
 	MASS::Character* character = new MASS::Character();
 	character->LoadSkeleton(std::string(MASS_ROOT_DIR)+std::string("/data/human.xml"),true);

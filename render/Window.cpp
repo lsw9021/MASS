@@ -135,7 +135,7 @@ Step()
 	if(mNNLoaded)
 		action = GetActionFromNN();
 	else
-		action = Eigen::VectorXd::Random(mEnv->GetActionDofs());
+		action = Eigen::VectorXd::Zero(mEnv->GetActionDofs());
 	mEnv->SetAction(action);
 
 	if(mEnv->GetUseMuscle())

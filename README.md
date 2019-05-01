@@ -5,6 +5,16 @@
 
 This code implements a basic simulation and control for full-body **Musculoskeletal** system. Skeletal movements are driven by the actuation of the muscles, coordinated by activation levels. Interfacing with python and pytorch, it is available to use Deep Reinforcement Learning(DRL) algorithm such as Proximal Policy Optimization(PPO).
 
+## Publications
+
+Seunghwan Lee, Kyoungmin Lee, Moonseok Park, and Jehee Lee 
+Scalable Muscle-actuated Human Simulation and Control, 
+ACM Transactions on Graphics (SIGGRAPH 2019), Volume 37, Article 73. 
+
+Project Page : http://mrl.snu.ac.kr/research/ProjectScalable/Page.htm
+Youtube : https://youtu.be/a3jfyJ9JVeM
+Paper : http://mrl.snu.ac.kr/research/ProjectScalable/Paper.pdf
+
 ## How to install
 
 ### Install TinyXML, Eigen, OpenGL, assimp, Python3, etc...
@@ -13,7 +23,7 @@ This code implements a basic simulation and control for full-body **Musculoskele
 sudo apt-get install libtinyxml-dev libeigen3-dev libxi-dev libxmu-dev freeglut3-dev libassimp-dev libpython3-dev python3-tk python3-numpy virtualenv ipython3 cmake-curses-gui
 ```
 
-### Install boost with python3
+### Install boost with python3 (1.66)
 
 We strongly recommand that you install boost libraries from the **source code**
 (not apt-get, etc...).
@@ -48,8 +58,6 @@ Lib
 ### Install DART 6.3
 
 Please refer to http://dartsim.github.io/ (Install version 6.3)
-
-
 
 
 ### Install PIP things
