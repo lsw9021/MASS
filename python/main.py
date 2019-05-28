@@ -392,7 +392,7 @@ if __name__=="__main__":
 		ppo.LoadModel(args.model)
 	else:
 		ppo.SaveModel()
-	print('num states: {}, num actions: {}'.format(ppo.env.GetStateDofs(),ppo.env.GetActionDofs()))
+	print('num states: {}, num actions: {}'.format(ppo.env.GetNumState(),ppo.env.GetNumAction()))
 	for i in range(ppo.max_iteration-5):
 		ppo.Train()
 		rewards = ppo.Evaluate()
