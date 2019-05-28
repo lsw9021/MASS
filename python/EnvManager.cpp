@@ -34,21 +34,15 @@ EnvManager(int num_envs)
 }
 int
 EnvManager::
-GetStateDofs()
+GetNumState()
 {
-	return mEnvs[0]->GetStateDofs();
+	return mEnvs[0]->GetNumState();
 }
 int
 EnvManager::
-GetActionDofs()
+GetNumAction()
 {
-	return mEnvs[0]->GetActionDofs();
-}
-int
-EnvManager::
-GetSystemDofs()
-{
-	return mEnvs[0]->GetSystemDofs();
+	return mEnvs[0]->GetNumAction();
 }
 int
 EnvManager::
@@ -159,7 +153,7 @@ np::ndarray
 EnvManager::
 GetStates()
 {
-	Eigen::MatrixXd states(mNumEnvs,this->GetStateDofs());
+	Eigen::MatrixXd states(mNumEnvs,this->GetNumState());
 	for (int id = 0;id<mNumEnvs;++id)
 	{
 		states.row(id) = mEnvs[id]->GetState().transpose();
@@ -254,9 +248,8 @@ BOOST_PYTHON_MODULE(pymss)
 	np::initialize();
 
 	class_<EnvManager>("EnvManager",init<int>())
-		.def("GetStateDofs",&EnvManager::GetStateDofs)
-		.def("GetActionDofs",&EnvManager::GetActionDofs)
-		.def("GetSystemDofs",&EnvManager::GetSystemDofs)
+		.def("GetNumState",&EnvManager::GetNumState)
+		.def("GetNumAction",&EnvManager::GetNumAction)
 		.def("GetSimulationHz",&EnvManager::GetSimulationHz)
 		.def("GetControlHz",&EnvManager::GetControlHz)
 		.def("GetNumSteps",&EnvManager::GetNumSteps)

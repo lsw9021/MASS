@@ -9,9 +9,8 @@ class EnvManager
 public:
 	EnvManager(int num_envs);
 
-	int GetStateDofs();
-	int GetActionDofs();
-	int GetSystemDofs();
+	int GetNumState();
+	int GetNumAction();
 	int GetSimulationHz();
 	int GetControlHz();
 	int GetNumSteps();

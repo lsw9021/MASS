@@ -45,9 +45,8 @@ public:
 	int GetSimulationHz(){return mSimulationHz;}
 	int GetNumTotalRelatedDofs(){return mCurrentMuscleTuple.JtA.rows();}
 	std::vector<MuscleTuple>& GetMuscleTuples(){return mMuscleTuples;};
-	int GetStateDofs();
-	int GetActionDofs();
-	int GetSystemDofs();
+	int GetNumState(){return mNumState;}
+	int GetNumAction(){return mNumActiveDof;}
 	int GetNumSteps(){return mSimulationHz/mControlHz;}
 	
 	const Eigen::VectorXd& GetActivationLevels(){return mActivationLevels;}
@@ -63,7 +62,9 @@ private:
 	Eigen::VectorXd mAction;
 	Eigen::VectorXd mTargetPositions,mTargetVelocities;
 
-	int mNumStates,mNumActions,mSystemDofs;
+	int mNumState;
+	int mNumActiveDof;
+	int mRootJointDof;
 
 	Eigen::VectorXd mActivationLevels;
 	Eigen::VectorXd mAverageActivationLevels;

@@ -43,9 +43,9 @@ Window(Environment* env,const std::string& nn_path)
 {
 	mNNLoaded = true;
 
-	boost::python::str str = ("num_state = "+std::to_string(mEnv->GetStateDofs())).c_str();
+	boost::python::str str = ("num_state = "+std::to_string(mEnv->GetNumState())).c_str();
 	p::exec(str,mns);
-	str = ("num_action = "+std::to_string(mEnv->GetActionDofs())).c_str();
+	str = ("num_action = "+std::to_string(mEnv->GetNumAction())).c_str();
 	p::exec(str,mns);
 
 	nn_module = p::eval("SimulationNN(num_state,num_action)",mns);
@@ -61,12 +61,12 @@ Window(Environment* env,const std::string& nn_path,const std::string& muscle_nn_
 
 	boost::python::str str = ("num_total_muscle_related_dofs = "+std::to_string(mEnv->GetNumTotalRelatedDofs())).c_str();
 	p::exec(str,mns);
-	str = ("num_dofs = "+std::to_string(mEnv->GetCharacter()->GetSkeleton()->getNumDofs())).c_str();
+	str = ("num_actions = "+std::to_string(mEnv->GetNumAction())).c_str();
 	p::exec(str,mns);
 	str = ("num_muscles = "+std::to_string(mEnv->GetCharacter()->GetMuscles().size())).c_str();
 	p::exec(str,mns);
 
-	muscle_nn_module = p::eval("MuscleNN(num_total_muscle_related_dofs,num_dofs-6,num_muscles).cuda()",mns);
+	muscle_nn_module = p::eval("MuscleNN(num_total_muscle_related_dofs,num_actions,num_muscles).cuda()",mns);
 
 	p::object load = muscle_nn_module.attr("load");
 	load(muscle_nn_path);
@@ -135,7 +135,7 @@ Step()
 	if(mNNLoaded)
 		action = GetActionFromNN();
 	else
-		action = Eigen::VectorXd::Zero(mEnv->GetActionDofs());
+		action = Eigen::VectorXd::Zero(mEnv->GetNumAction());
 	mEnv->SetAction(action);
 
 	if(mEnv->GetUseMuscle())
@@ -212,7 +212,7 @@ GetActionFromNN()
 
 	float* srcs = reinterpret_cast<float*>(action_np.get_data());
 
-	Eigen::VectorXd action(mEnv->GetActionDofs());
+	Eigen::VectorXd action(mEnv->GetNumAction());
 	for(int i=0;i<action.rows();i++)
 		action[i] = srcs[i];
 

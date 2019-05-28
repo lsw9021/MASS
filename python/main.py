@@ -64,9 +64,8 @@ class PPO(object):
 		self.num_slaves = 16
 		self.env = EnvManager(self.num_slaves)
 		self.use_muscle = self.env.UseMuscle()
-		self.num_state = self.env.GetStateDofs()
-		self.num_action = self.env.GetActionDofs()
-		self.num_dofs = self.env.GetSystemDofs()
+		self.num_state = self.env.GetNumState()
+		self.num_action = self.env.GetNumAction()
 		self.num_muscles = self.env.GetNumMuscles()
 
 		self.num_epochs = 10
@@ -90,7 +89,7 @@ class PPO(object):
 
 		self.model = SimulationNN(self.num_state,self.num_action)
 
-		self.muscle_model = MuscleNN(self.env.GetNumTotalMuscleRelatedDofs(),self.num_dofs-6,self.num_muscles)
+		self.muscle_model = MuscleNN(self.env.GetNumTotalMuscleRelatedDofs(),self.num_action,self.num_muscles)
 		if use_cuda:
 			self.model.cuda()
 			self.muscle_model.cuda()
@@ -278,7 +277,7 @@ class PPO(object):
 				stack_tau_des = np.vstack(batch.tau_des).astype(np.float32)
 				stack_L = np.vstack(batch.L).astype(np.float32)
 
-				stack_L = stack_L.reshape(self.muscle_batch_size,self.num_dofs-6,self.num_muscles)
+				stack_L = stack_L.reshape(self.muscle_batch_size,self.num_action,self.num_muscles)
 				stack_b = np.vstack(batch.b).astype(np.float32)
 
 				stack_JtA = Tensor(stack_JtA)

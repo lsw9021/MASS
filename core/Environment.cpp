@@ -11,7 +11,10 @@ using namespace MASS;
 
 Environment::
 Environment()
-	:mControlHz(30),mSimulationHz(900),mWorld(std::make_shared<World>()),w_q(0.65),w_v(0.1),w_ee(0.15),w_com(0.1),mUseMuscle(true){}
+	:mControlHz(30),mSimulationHz(900),mWorld(std::make_shared<World>()),mUseMuscle(true),w_q(0.65),w_v(0.1),w_ee(0.15),w_com(0.1)
+{
+
+}
 
 void
 Environment::
@@ -21,10 +24,14 @@ Initialize()
 		std::cout<<"Initialize character First"<<std::endl;
 		exit(0);
 	}
-	if(mGround==nullptr){
-		std::cout<<"Initialize ground First"<<std::endl;
-		exit(0);
-	}
+	if(mCharacter->GetSkeleton()->getRootBodyNode()->getParentJoint()->getType()=="FreeJoint")
+		mRootJointDof = 6;
+	else if(mCharacter->GetSkeleton()->getRootBodyNode()->getParentJoint()->getType()=="PlanarJoint")
+		mRootJointDof = 3;	
+	else
+		mRootJointDof = 0;
+
+	mNumActiveDof = mCharacter->GetSkeleton()->getNumDofs()-mRootJointDof;
 	if(mUseMuscle)
 	{
 		int num_total_related_dofs = 0;
@@ -33,9 +40,9 @@ Initialize()
 			num_total_related_dofs += m->GetNumRelatedDofs();
 		}
 		mCurrentMuscleTuple.JtA = Eigen::VectorXd::Zero(num_total_related_dofs);
-		mCurrentMuscleTuple.L = Eigen::MatrixXd::Zero(mCharacter->GetSkeleton()->getNumDofs()-6,mCharacter->GetMuscles().size());
-		mCurrentMuscleTuple.b = Eigen::VectorXd::Zero(mCharacter->GetSkeleton()->getNumDofs()-6);
-		mCurrentMuscleTuple.tau_des = Eigen::VectorXd::Zero(mCharacter->GetSkeleton()->getNumDofs()-6);
+		mCurrentMuscleTuple.L = Eigen::MatrixXd::Zero(mNumActiveDof,mCharacter->GetMuscles().size());
+		mCurrentMuscleTuple.b = Eigen::VectorXd::Zero(mNumActiveDof);
+		mCurrentMuscleTuple.tau_des = Eigen::VectorXd::Zero(mNumActiveDof);
 		mActivationLevels = Eigen::VectorXd::Zero(mCharacter->GetMuscles().size());
 	}
 	mWorld->setGravity(Eigen::Vector3d(0,-9.8,0.0));
@@ -43,12 +50,37 @@ Initialize()
 	mWorld->getConstraintSolver()->setCollisionDetector(dart::collision::BulletCollisionDetector::create());
 	mWorld->addSkeleton(mCharacter->GetSkeleton());
 	mWorld->addSkeleton(mGround);
-
-	mNumActions = mCharacter->GetSkeleton()->getNumDofs()-6;
-	mAction = Eigen::VectorXd::Zero(mNumActions);
+	mAction = Eigen::VectorXd::Zero(mNumActiveDof);
 	
 	Reset(false);
-	mNumStates = GetState().rows(),mSystemDofs = mCharacter->GetSkeleton()->getNumDofs();
+	mNumState = GetState().rows();
+}
+void
+Environment::
+Reset(bool RSI)
+{
+	mWorld->reset();
+
+	mCharacter->GetSkeleton()->clearConstraintImpulses();
+	mCharacter->GetSkeleton()->clearInternalForces();
+	mCharacter->GetSkeleton()->clearExternalForces();
+	
+	double t = 0.0;
+
+	if(RSI)
+		t = dart::math::random(0.0,mCharacter->GetBVH()->GetMaxTime()*0.9);
+	mWorld->setTime(t);
+	mCharacter->Reset();
+
+	mAction.setZero();
+
+	std::pair<Eigen::VectorXd,Eigen::VectorXd> pv = mCharacter->GetTargetPosAndVel(t,1.0/mControlHz);
+	mTargetPositions = pv.first;
+	mTargetVelocities = pv.second;
+
+	mCharacter->GetSkeleton()->setPositions(mTargetPositions);
+	mCharacter->GetSkeleton()->setVelocities(mTargetVelocities);
+	mCharacter->GetSkeleton()->computeForwardKinematics(true,false,false);
 }
 void
 Environment::
@@ -85,9 +117,9 @@ Step()
 			}
 
 			mCurrentMuscleTuple.JtA = GetMuscleTorques();
-			mCurrentMuscleTuple.L = JtA.block(6,0,n-6,m);
-			mCurrentMuscleTuple.b = Jtp.segment(6,n-6);
-			mCurrentMuscleTuple.tau_des = mDesiredTorque.tail(mDesiredTorque.rows()-6);
+			mCurrentMuscleTuple.L = JtA.block(mRootJointDof,0,n-mRootJointDof,m);
+			mCurrentMuscleTuple.b = Jtp.segment(mRootJointDof,n-mRootJointDof);
+			mCurrentMuscleTuple.tau_des = mDesiredTorque.tail(mDesiredTorque.rows()-mRootJointDof);
 			mMuscleTuples.push_back(mCurrentMuscleTuple);
 		}
 	}
@@ -108,33 +140,45 @@ Step()
 	mSimCount++;
 }
 
-void
+
+Eigen::VectorXd
 Environment::
-Reset(bool RSI)
+GetDesiredTorques()
 {
-	mWorld->reset();
-
-	mCharacter->GetSkeleton()->clearConstraintImpulses();
-	mCharacter->GetSkeleton()->clearInternalForces();
-	mCharacter->GetSkeleton()->clearExternalForces();
-	
-	double t = 0.0;
-
-	if(RSI)
-		t = dart::math::random(0.0,mCharacter->GetBVH()->GetMaxTime()*0.9);
-	mWorld->setTime(t);
-	mCharacter->Reset();
-
-	mAction.setZero();
-
-	std::pair<Eigen::VectorXd,Eigen::VectorXd> pv = mCharacter->GetTargetPosAndVel(t,1.0/mControlHz);
-	mTargetPositions = pv.first;
-	mTargetVelocities = pv.second;
-
-	mCharacter->GetSkeleton()->setPositions(mTargetPositions);
-	mCharacter->GetSkeleton()->setVelocities(mTargetVelocities);
-	mCharacter->GetSkeleton()->computeForwardKinematics(true,false,false);
+	Eigen::VectorXd p_des = mTargetPositions;
+	p_des.tail(mTargetPositions.rows()-mRootJointDof) += mAction;
+	mDesiredTorque = mCharacter->GetSPDForces(p_des);
+	return mDesiredTorque.tail(mDesiredTorque.rows()-mRootJointDof);
 }
+Eigen::VectorXd
+Environment::
+GetMuscleTorques()
+{
+	int index = 0;
+	mCurrentMuscleTuple.JtA.setZero();
+	for(auto muscle : mCharacter->GetMuscles())
+	{
+		muscle->Update();
+		Eigen::VectorXd JtA_i = muscle->GetRelatedJtA();
+		mCurrentMuscleTuple.JtA.segment(index,JtA_i.rows()) = JtA_i;
+		index += JtA_i.rows();
+	}
+	
+	return mCurrentMuscleTuple.JtA;
+}
+double exp_of_squared(const Eigen::VectorXd& vec,double w)
+{
+	return exp(-w*vec.squaredNorm());
+}
+double exp_of_squared(const Eigen::Vector3d& vec,double w)
+{
+	return exp(-w*vec.squaredNorm());
+}
+double exp_of_squared(double val,double w)
+{
+	return exp(-w*val*val);
+}
+
 
 bool
 Environment::
@@ -186,18 +230,6 @@ GetState()
 
 	state<<p,v,phi;
 	return state;
-}
-double exp_of_squared(const Eigen::VectorXd& vec,double w = 1.0)
-{
-	return exp(-w*vec.squaredNorm());
-}
-double exp_of_squared(const Eigen::Vector3d& vec,double w = 1.0)
-{
-	return exp(-w*vec.squaredNorm());
-}
-double exp_of_squared(double val,double w = 1.0)
-{
-	return exp(-w*val*val);
 }
 void 
 Environment::
@@ -270,47 +302,4 @@ GetReward()
 	double r = w_q*r_q + w_v*r_v + w_ee*r_ee + w_com*r_com;
 
 	return r;
-}
-int
-Environment::
-GetStateDofs()
-{
-	return mNumStates;
-}
-int
-Environment::
-GetActionDofs()
-{
-	return mNumActions;
-}
-int
-Environment::
-GetSystemDofs()
-{
-	return mSystemDofs;
-}
-Eigen::VectorXd
-Environment::
-GetDesiredTorques()
-{
-	Eigen::VectorXd p_des = mTargetPositions;
-	p_des.tail(mTargetPositions.rows()-6) += mAction;
-	mDesiredTorque = mCharacter->GetSPDForces(p_des);
-	return mDesiredTorque.tail(mDesiredTorque.rows()-6);
-}
-Eigen::VectorXd
-Environment::
-GetMuscleTorques()
-{
-	int index = 0;
-	mCurrentMuscleTuple.JtA.setZero();
-	for(auto muscle : mCharacter->GetMuscles())
-	{
-		muscle->Update();
-		Eigen::VectorXd JtA_i = muscle->GetRelatedJtA();
-		mCurrentMuscleTuple.JtA.segment(index,JtA_i.rows()) = JtA_i;
-		index += JtA_i.rows();
-	}
-	
-	return mCurrentMuscleTuple.JtA;
 }
