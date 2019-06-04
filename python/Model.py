@@ -84,8 +84,8 @@ class SimulationNN(nn.Module):
 	def __init__(self,num_states,num_actions):
 		super(SimulationNN,self).__init__()
 		
-		num_h1 = 512
-		num_h2 = 512
+		num_h1 = 256
+		num_h2 = 256
 
 		self.p_fc1 = nn.Linear(num_states,num_h1)
 		self.p_fc2 = nn.Linear(num_h1,num_h2)

@@ -3,7 +3,7 @@
 #include <omp.h>
 
 EnvManager::
-EnvManager(int num_envs)
+EnvManager(std::string meta_file,int num_envs)
 	:mNumEnvs(num_envs)
 {
 	dart::math::seedRand();
@@ -12,24 +12,25 @@ EnvManager(int num_envs)
 		mEnvs.push_back(new MASS::Environment());
 		MASS::Environment* env = mEnvs.back();
 
-		env->SetUseMuscle(false);
-		env->SetControlHz(30);
-		env->SetSimulationHz(600);
-		env->SetRewardParameters(0.65,0.1,0.15,0.1);
+		env->Initialize(meta_file,false);
+		// env->SetUseMuscle(false);
+		// env->SetControlHz(30);
+		// env->SetSimulationHz(600);
+		// env->SetRewardParameters(0.65,0.1,0.15,0.1);
 
-		MASS::Character* character = new MASS::Character();
-		character->LoadSkeleton(std::string(MASS_ROOT_DIR)+std::string("/data/human.xml"),false);
-		if(env->GetUseMuscle())
-			character->LoadMuscles(std::string(MASS_ROOT_DIR)+std::string("/data/muscle.xml"));
+		// MASS::Character* character = new MASS::Character();
+		// character->LoadSkeleton(std::string(MASS_ROOT_DIR)+std::string("/data/human.xml"),false);
+		// if(env->GetUseMuscle())
+		// 	character->LoadMuscles(std::string(MASS_ROOT_DIR)+std::string("/data/muscle.xml"));
 
-		character->LoadBVH(std::string(MASS_ROOT_DIR)+std::string("/data/motion/pirouette.bvh"),false);
+		// character->LoadBVH(std::string(MASS_ROOT_DIR)+std::string("/data/motion/walk.bvh"),true);
 		
-		double kp = 300.0;
-		character->SetPDParameters(kp,sqrt(2*kp));
-		env->SetCharacter(character);
-		env->SetGround(MASS::BuildFromFile(std::string(MASS_ROOT_DIR)+std::string("/data/ground.xml")));
+		// double kp = 300.0;
+		// character->SetPDParameters(kp,sqrt(2*kp));
+		// env->SetCharacter(character);
+		// env->SetGround(MASS::BuildFromFile(std::string(MASS_ROOT_DIR)+std::string("/data/ground.xml")));
 
-		env->Initialize();
+		// env->Initialize();
 	}
 }
 int
@@ -247,7 +248,7 @@ BOOST_PYTHON_MODULE(pymss)
 	Py_Initialize();
 	np::initialize();
 
-	class_<EnvManager>("EnvManager",init<int>())
+	class_<EnvManager>("EnvManager",init<std::string,int>())
 		.def("GetNumState",&EnvManager::GetNumState)
 		.def("GetNumAction",&EnvManager::GetNumAction)
 		.def("GetSimulationHz",&EnvManager::GetSimulationHz)

@@ -18,6 +18,93 @@ Environment()
 
 void
 Environment::
+Initialize(const std::string& meta_file,bool load_obj)
+{
+	std::ifstream ifs(meta_file);
+	if(!(ifs.is_open()))
+	{
+		std::cout<<"Can't read file "<<meta_file<<std::endl;
+		return;
+	}
+	std::string str;
+	std::string index;
+	std::stringstream ss;
+	MASS::Character* character = new MASS::Character();
+	while(!ifs.eof())
+	{
+		str.clear();
+		index.clear();
+		ss.clear();
+
+		std::getline(ifs,str);
+		ss.str(str);
+		ss>>index;
+		if(!index.compare("use_muscle"))
+		{	
+			std::string str2;
+			ss>>str2;
+			if(!str2.compare("true"))
+				this->SetUseMuscle(true);
+			else
+				this->SetUseMuscle(false);
+		}
+		else if(!index.compare("con_hz")){
+			int hz;
+			ss>>hz;
+			this->SetControlHz(hz);
+		}
+		else if(!index.compare("sim_hz")){
+			int hz;
+			ss>>hz;
+			this->SetSimulationHz(hz);
+		}
+		else if(!index.compare("sim_hz")){
+			int hz;
+			ss>>hz;
+			this->SetSimulationHz(hz);
+		}
+		else if(!index.compare("skel_file")){
+			std::string str2;
+			ss>>str2;
+
+			character->LoadSkeleton(std::string(MASS_ROOT_DIR)+str2,load_obj);
+		}
+		else if(!index.compare("muscle_file")){
+			std::string str2;
+			ss>>str2;
+			if(this->GetUseMuscle())
+				character->LoadMuscles(std::string(MASS_ROOT_DIR)+str2);
+		}
+		else if(!index.compare("bvh_file")){
+			std::string str2,str3;
+
+			ss>>str2>>str3;
+			bool cyclic = false;
+			if(!str3.compare("true"))
+				cyclic = true;
+			character->LoadBVH(std::string(MASS_ROOT_DIR)+str2,cyclic);
+		}
+		else if(!index.compare("reward_param")){
+			double a,b,c,d;
+			ss>>a>>b>>c>>d;
+			this->SetRewardParameters(a,b,c,d);
+
+		}
+
+
+	}
+	ifs.close();
+	
+	
+	double kp = 300.0;
+	character->SetPDParameters(kp,sqrt(2*kp));
+	this->SetCharacter(character);
+	this->SetGround(MASS::BuildFromFile(std::string(MASS_ROOT_DIR)+std::string("/data/ground.xml")));
+
+	this->Initialize();
+}
+void
+Environment::
 Initialize()
 {
 	if(mCharacter->GetSkeleton()==nullptr){
@@ -30,7 +117,6 @@ Initialize()
 		mRootJointDof = 3;	
 	else
 		mRootJointDof = 0;
-
 	mNumActiveDof = mCharacter->GetSkeleton()->getNumDofs()-mRootJointDof;
 	if(mUseMuscle)
 	{
@@ -206,7 +292,6 @@ GetState()
 	auto& skel = mCharacter->GetSkeleton();
 	dart::dynamics::BodyNode* root = skel->getBodyNode(0);
 	int num_body_nodes = skel->getNumBodyNodes() - 1;
-
 	Eigen::VectorXd p,v;
 
 	p.resize( (num_body_nodes-1)*3);
@@ -299,7 +384,7 @@ GetReward()
 	double r_ee = exp_of_squared(ee_diff,40.0);
 	double r_com = exp_of_squared(com_diff,10.0);
 
-	double r = w_q*r_q + w_v*r_v + w_ee*r_ee + w_com*r_com;
+	double r = (w_q*r_q + w_v*r_v + w_ee*r_ee + w_com*r_com);
 
 	return r;
 }

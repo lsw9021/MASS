@@ -1,0 +1,7 @@
+use_muscle true
+con_hz 30
+sim_hz 600
+skel_file /data/human.xml
+muscle_file /data/muscle284.xml
+bvh_file /data/motion/walk.bvh true
+reward_param 0.65 0.1 0.15 0.1

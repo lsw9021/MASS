@@ -59,10 +59,10 @@ class ReplayBuffer(object):
 	def Clear(self):
 		self.buffer.clear()
 class PPO(object):
-	def __init__(self):
+	def __init__(self,meta_file):
 		np.random.seed(seed = int(time.time()))
 		self.num_slaves = 16
-		self.env = EnvManager(self.num_slaves)
+		self.env = EnvManager(meta_file,self.num_slaves)
 		self.use_muscle = self.env.UseMuscle()
 		self.num_state = self.env.GetNumState()
 		self.num_action = self.env.GetNumAction()
@@ -102,7 +102,7 @@ class PPO(object):
 		self.optimizer_muscle = optim.Adam(self.muscle_model.parameters(),lr=self.learning_rate)
 		self.max_iteration = 50000
 
-		self.w_entropy = 0.001
+		self.w_entropy = -0.001
 
 		self.loss_actor = 0.0
 		self.loss_critic = 0.0
@@ -379,12 +379,16 @@ def Plot(y,title,num_fig=1,ylim=True):
 import argparse
 import os
 if __name__=="__main__":
-	ppo = PPO()
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-m','--model',help='model path')
+	parser.add_argument('-d','--meta',help='meta file')
 
 	args =parser.parse_args()
-	
+	if args.meta is None:
+		print('Provide meta file')
+		exit()
+
+	ppo = PPO(args.meta)
 	nn_dir = '../nn'
 	if not os.path.exists(nn_dir):
 	    os.makedirs(nn_dir)
@@ -392,7 +396,7 @@ if __name__=="__main__":
 		ppo.LoadModel(args.model)
 	else:
 		ppo.SaveModel()
-	print('num states: {}, num actions: {}'.format(ppo.env.GetStateDofs(),ppo.env.GetActionDofs()))
+	print('num states: {}, num actions: {}'.format(ppo.env.GetNumState(),ppo.env.GetNumAction()))
 	for i in range(ppo.max_iteration-5):
 		ppo.Train()
 		rewards = ppo.Evaluate()

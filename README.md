@@ -86,7 +86,10 @@ pip3 install numpy matplotlib ipython
 
 ### Resource
 
-Our system require a reference motion to imitate. We provide sample references such as walking, running, and etc...
+Our system require a reference motion to imitate. We provide sample references such as walking, running, and etc... 
+
+To learn and simulate, we should provide such a meta data. We provide default meta data in /data/metadata.txt. We parse the text and set the environment. Please note that the learning settings and the test settings should be equal.(metadata.txt should not be changed.)
+
 
 ### Compile and Run
 
@@ -97,29 +100,29 @@ cmake ..
 make -j8
 ```
 
-- Run PPO
+- Run Training
 ```bash
 cd python
 source /path/to/virtualenv/
-python3 PPO.py
+python3 main.py -d ../data/metadata.txt
 ```
 
-All the training networks are saved in /nn folder
+All the training networks are saved in /nn folder.
 
 - Run UI
 ```bash
 source /path/to/virtualenv/
-./render/render
+./render/render ../data/metadata.txt
 ```
 
 - Run Trained data
 ```bash
 source /path/to/virtualenv/
-./render/render ../nn/xxx.pt ../nn/xxx_muscle.pt
+./render/render ../data/metadata.txt ../nn/xxx.pt ../nn/xxx_muscle.pt
 ```
 
 If you are simulating with the torque-actuated model, 
 ```bash
 source /path/to/virtualenv/
-./render/render ../nn/xxx.pt
+./render/render ../data/metadata.txt ../nn/xxx.pt
 ```

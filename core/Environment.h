@@ -27,6 +27,7 @@ public:
 
 	void SetRewardParameters(double w_q,double w_v,double w_ee,double w_com){this->w_q = w_q;this->w_v = w_v;this->w_ee = w_ee;this->w_com = w_com;}
 	void Initialize();
+	void Initialize(const std::string& meta_file,bool load_obj = false);
 public:
 	void Step();
 	void Reset(bool RSI = true);

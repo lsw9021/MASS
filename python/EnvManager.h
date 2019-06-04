@@ -7,7 +7,7 @@
 class EnvManager
 {
 public:
-	EnvManager(int num_envs);
+	EnvManager(std::string meta_file,int num_envs);
 
 	int GetNumState();
 	int GetNumAction();

@@ -1,7 +1,7 @@
 <Skeleton name="Ground">
     <Node name="ground" parent="None" >
         <Body type="Box" mass="15.0" size="1000.0 1.0 1000.0" contact="On" color="1.2 1.2 1.2 1.0">
-            <Transformation linear="1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0" translation="0.0 -0.46 0.0"/>
+            <Transformation linear="1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0" translation="0.0 -0.49958 0.0"/>
         </Body>
         <Joint type="Weld">
             <Transformation linear="1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0" translation="0.0 0.0 0.0"/>
