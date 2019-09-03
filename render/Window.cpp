@@ -66,7 +66,7 @@ Window(Environment* env,const std::string& nn_path,const std::string& muscle_nn_
 	str = ("num_muscles = "+std::to_string(mEnv->GetCharacter()->GetMuscles().size())).c_str();
 	p::exec(str,mns);
 
-	muscle_nn_module = p::eval("MuscleNN(num_total_muscle_related_dofs,num_actions,num_muscles).cuda()",mns);
+	muscle_nn_module = p::eval("MuscleNN(num_total_muscle_related_dofs,num_actions,num_muscles)",mns);
 
 	p::object load = muscle_nn_module.attr("load");
 	load(muscle_nn_path);

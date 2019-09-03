@@ -384,7 +384,7 @@ GetReward()
 	double r_ee = exp_of_squared(ee_diff,40.0);
 	double r_com = exp_of_squared(com_diff,10.0);
 
-	double r = (w_q*r_q + w_v*r_v + w_ee*r_ee + w_com*r_com);
+	double r = r_ee*(w_q*r_q + w_v*r_v);
 
 	return r;
 }

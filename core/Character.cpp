@@ -27,7 +27,8 @@ LoadSkeleton(const std::string& path,bool create_obj)
 	{
 		if(node->Attribute("endeffector")!=nullptr)
 		{
-			if(node->Attribute("endeffector") == "True")
+			std::string ee =node->Attribute("endeffector");
+			if(ee == "True")
 			{
 				mEndEffectors.push_back(mSkeleton->getBodyNode(std::string(node->Attribute("name"))));
 			}
