@@ -12,7 +12,7 @@ namespace MASS
 {
 class Environment;
 class Muscle;
-class Window : public dart::gui::Win3D
+class Window : public dart::gui::glut::Win3D
 {
 public:
 	Window(Environment* env);
