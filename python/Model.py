@@ -60,6 +60,7 @@ class MuscleNN(nn.Module):
 		if use_cuda:
 			self.std_tau = self.std_tau.cuda()
 			self.std_muscle_tau = self.std_muscle_tau.cuda()
+			self.cuda()
 		self.fc.apply(weights_init)
 	def forward(self,muscle_tau,tau):
 		muscle_tau = muscle_tau/self.std_muscle_tau

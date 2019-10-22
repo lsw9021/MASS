@@ -126,3 +126,23 @@ If you are simulating with the torque-actuated model,
 source /path/to/virtualenv/
 ./render/render ../data/metadata.txt ../nn/xxx.pt
 ```
+
+## How to use [Docker](https://opensource.com/resources/what-docker)
+
+### Install docker.ce and nvidia-docker
+
+Please refer to [docker docs](https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/) and [nvidia-docker github](https://github.com/NVIDIA/nvidia-docker).
+
+### Run Docker
+
+- Build docker image
+
+```bash
+docker build . -t mass
+```
+
+- Run docker container
+
+```bash
+bash docker.sh
+```
