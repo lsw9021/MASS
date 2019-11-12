@@ -61,6 +61,7 @@ Lib
 
 Please refer to http://dartsim.github.io/ (Install version 6.3)
 
+If you are trying to use latest version, rendering codes should be changed according to the version. It is recommended to use the exact 6.3 version.
 
 ### Install PIP things
 
@@ -126,3 +127,11 @@ If you are simulating with the torque-actuated model,
 source /path/to/virtualenv/
 ./render/render ../data/metadata.txt ../nn/xxx.pt
 ```
+
+
+## Model Creation & Retargeting (This module is ongoing project.)
+
+### This requires Maya and MotionBuilder.
+
+There is a sample model in data/maya folder that I generally use. Currently if you are trying to edit the model, you have to make your own export maya-python code and xml writer so that the simulation code correctly read the musculoskeletal structure. 
+There is also a rig model that is useful to retarget a new motion. 
