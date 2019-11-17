@@ -50,6 +50,6 @@ WORKDIR /opt/MASS/build
 RUN cmake ..
 RUN make -j8
 
-WORKDIR /opt/MASS/python
-VOLUME /opt/MASS/nn
+WORKDIR /opt/MASS
+VOLUME /opt/nn
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
