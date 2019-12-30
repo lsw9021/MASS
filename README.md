@@ -63,6 +63,27 @@ Please refer to http://dartsim.github.io/ (Install version 6.3)
 
 If you are trying to use latest version, rendering codes should be changed according to the version. It is recommended to use the exact 6.3 version.
 
+Manual from DART(http://dartsim.github.io/install_dart_on_ubuntu.html)
+1. install required dependencies
+
+```bash
+sudo apt-get install build-essential cmake pkg-config git
+sudo apt-get install libeigen3-dev libassimp-dev libccd-dev libfcl-dev libboost-regex-dev libboost-system-dev
+sudo apt-get install libopenscenegraph-dev
+```
+2. install DART v6.3.0
+
+```bash
+git clone git://github.com/dartsim/dart.git
+cd dart
+git checkout tags/v6.3.0
+mkdir build
+cd build
+cmake ..
+make -j4
+sudo make install
+```
+
 ### Install PIP things
 
 You should first activate virtualenv.
