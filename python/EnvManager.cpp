@@ -13,25 +13,14 @@ EnvManager(std::string meta_file,int num_envs)
 		MASS::Environment* env = mEnvs.back();
 
 		env->Initialize(meta_file,false);
-		// env->SetUseMuscle(false);
-		// env->SetControlHz(30);
-		// env->SetSimulationHz(600);
-		// env->SetRewardParameters(0.65,0.1,0.15,0.1);
-
-		// MASS::Character* character = new MASS::Character();
-		// character->LoadSkeleton(std::string(MASS_ROOT_DIR)+std::string("/data/human.xml"),false);
-		// if(env->GetUseMuscle())
-		// 	character->LoadMuscles(std::string(MASS_ROOT_DIR)+std::string("/data/muscle.xml"));
-
-		// character->LoadBVH(std::string(MASS_ROOT_DIR)+std::string("/data/motion/walk.bvh"),true);
-		
-		// double kp = 300.0;
-		// character->SetPDParameters(kp,sqrt(2*kp));
-		// env->SetCharacter(character);
-		// env->SetGround(MASS::BuildFromFile(std::string(MASS_ROOT_DIR)+std::string("/data/ground.xml")));
-
-		// env->Initialize();
 	}
+	muscle_torque_cols = mEnvs[0]->GetMuscleTorques().rows();
+	tau_des_cols = mEnvs[0]->GetDesiredTorques().rows();
+	mEoe.resize(mNumEnvs);
+	mRewards.resize(mNumEnvs);
+	mStates.resize(mNumEnvs, GetNumState());
+	mMuscleTorques.resize(mNumEnvs, muscle_torque_cols);
+	mDesiredTorques.resize(mNumEnvs, tau_des_cols);
 }
 int
 EnvManager::
@@ -87,18 +76,7 @@ IsEndOfEpisode(int id)
 {
 	return mEnvs[id]->IsEndOfEpisode();
 }
-np::ndarray 
-EnvManager::
-GetState(int id)
-{
-	return toNumPyArray(mEnvs[id]->GetState());
-}
-void 
-EnvManager::
-SetAction(np::ndarray np_array, int id)
-{
-	mEnvs[id]->SetAction(toEigenVector(np_array));
-}
+
 double 
 EnvManager::
 GetReward(int id)
@@ -138,117 +116,149 @@ Resets(bool RSI)
 		mEnvs[id]->Reset(RSI);
 	}
 }
-np::ndarray
+const Eigen::VectorXd&
 EnvManager::
 IsEndOfEpisodes()
 {
-	std::vector<bool> is_end_vector(mNumEnvs);
 	for (int id = 0;id<mNumEnvs;++id)
 	{
-		is_end_vector[id] = mEnvs[id]->IsEndOfEpisode();
+		mEoe[id] = (double)mEnvs[id]->IsEndOfEpisode();
 	}
 
-	return toNumPyArray(is_end_vector);
+	return mEoe;
 }
-np::ndarray
+const Eigen::MatrixXd&
 EnvManager::
 GetStates()
 {
-	Eigen::MatrixXd states(mNumEnvs,this->GetNumState());
 	for (int id = 0;id<mNumEnvs;++id)
 	{
-		states.row(id) = mEnvs[id]->GetState().transpose();
+		mStates.row(id) = mEnvs[id]->GetState().transpose();
 	}
 
-	return toNumPyArray(states);
+	return mStates;
 }
 void
 EnvManager::
-SetActions(np::ndarray np_array)
+SetActions(const Eigen::MatrixXd& actions)
 {
-	Eigen::MatrixXd action = toEigenMatrix(np_array);
 	for (int id = 0;id<mNumEnvs;++id)
 	{
-		mEnvs[id]->SetAction(action.row(id).transpose());
+		mEnvs[id]->SetAction(actions.row(id).transpose());
 	}
 }
-np::ndarray
+const Eigen::VectorXd&
 EnvManager::
 GetRewards()
 {
-	std::vector<float> rewards(mNumEnvs);
 	for (int id = 0;id<mNumEnvs;++id)
 	{
-		rewards[id] = mEnvs[id]->GetReward();
+		mRewards[id] = mEnvs[id]->GetReward();
 	}
-	return toNumPyArray(rewards);
+	return mRewards;
 }
-np::ndarray
+const Eigen::MatrixXd&
 EnvManager::
 GetMuscleTorques()
 {
-	std::vector<Eigen::VectorXd> mt(mNumEnvs);
-
 #pragma omp parallel for
 	for (int id = 0; id < mNumEnvs; ++id)
 	{
-		mt[id] = mEnvs[id]->GetMuscleTorques();
+		mMuscleTorques.row(id) = mEnvs[id]->GetMuscleTorques();
 	}
-	return toNumPyArray(mt);
+	return mMuscleTorques;
 }
-np::ndarray
+const Eigen::MatrixXd&
 EnvManager::
 GetDesiredTorques()
 {
-	std::vector<Eigen::VectorXd> tau_des(mNumEnvs);
-	
 #pragma omp parallel for
 	for (int id = 0; id < mNumEnvs; ++id)
 	{
-		tau_des[id] = mEnvs[id]->GetDesiredTorques();
+		mDesiredTorques.row(id) = mEnvs[id]->GetDesiredTorques();
 	}
-	return toNumPyArray(tau_des);
+	return mDesiredTorques;
 }
 
 void
 EnvManager::
-SetActivationLevels(np::ndarray np_array)
+SetActivationLevels(const Eigen::MatrixXd& activations)
 {
-	std::vector<Eigen::VectorXd> activations =toEigenVectorVector(np_array);
 	for (int id = 0; id < mNumEnvs; ++id)
-		mEnvs[id]->SetActivationLevels(activations[id]);
+		mEnvs[id]->SetActivationLevels(activations.row(id));
 }
 
-p::list
+void
 EnvManager::
-GetMuscleTuples()
+ComputeMuscleTuples()
 {
-	p::list all;
-	for (int id = 0; id < mNumEnvs; ++id)
+	int n = 0;
+	int rows_JtA;
+	int rows_tau_des;
+	int rows_L;
+	int rows_b;
+
+	for(int id=0;id<mNumEnvs;id++)
+	{
+		auto& tps = mEnvs[id]->GetMuscleTuples();
+		n += tps.size();
+		if(tps.size()!=0)
+		{
+			rows_JtA = tps[0].JtA.rows();
+			rows_tau_des = tps[0].tau_des.rows();
+			rows_L = tps[0].L.rows();
+			rows_b = tps[0].b.rows();
+		}
+	}
+	
+	mMuscleTuplesJtA.resize(n, rows_JtA);
+	mMuscleTuplesTauDes.resize(n, rows_tau_des);
+	mMuscleTuplesL.resize(n, rows_L);
+	mMuscleTuplesb.resize(n, rows_b);
+
+	int o = 0;
+	for(int id=0;id<mNumEnvs;id++)
 	{
 		auto& tps = mEnvs[id]->GetMuscleTuples();
 		for(int j=0;j<tps.size();j++)
 		{
-			p::list t;
-			t.append(toNumPyArray(tps[j].JtA));
-			t.append(toNumPyArray(tps[j].tau_des));
-			t.append(toNumPyArray(tps[j].L));
-			t.append(toNumPyArray(tps[j].b));
-			all.append(t);
+			mMuscleTuplesJtA.row(o) = tps[j].JtA;
+			mMuscleTuplesTauDes.row(o) = tps[j].tau_des;
+			mMuscleTuplesL.row(o) = tps[j].L;
+			mMuscleTuplesb.row(o) = tps[j].b;
+			o++;
 		}
 		tps.clear();
 	}
-
-	return all;
 }
-using namespace boost::python;
-
-BOOST_PYTHON_MODULE(pymss)
+const Eigen::MatrixXd&
+EnvManager::
+GetMuscleTuplesJtA()
 {
-	Py_Initialize();
-	np::initialize();
-
-	class_<EnvManager>("EnvManager",init<std::string,int>())
+	return mMuscleTuplesJtA;
+}
+const Eigen::MatrixXd&
+EnvManager::
+GetMuscleTuplesTauDes()
+{
+	return mMuscleTuplesTauDes;
+}
+const Eigen::MatrixXd&
+EnvManager::
+GetMuscleTuplesL()
+{
+	return mMuscleTuplesL;
+}
+const Eigen::MatrixXd&
+EnvManager::
+GetMuscleTuplesb()
+{
+	return mMuscleTuplesb;
+}
+PYBIND11_MODULE(pymss, m)
+{
+	py::class_<EnvManager>(m, "pymss")
+		.def(py::init<std::string,int>())
 		.def("GetNumState",&EnvManager::GetNumState)
 		.def("GetNumAction",&EnvManager::GetNumAction)
 		.def("GetSimulationHz",&EnvManager::GetSimulationHz)
@@ -258,8 +268,6 @@ BOOST_PYTHON_MODULE(pymss)
 		.def("Step",&EnvManager::Step)
 		.def("Reset",&EnvManager::Reset)
 		.def("IsEndOfEpisode",&EnvManager::IsEndOfEpisode)
-		.def("GetState",&EnvManager::GetState)
-		.def("SetAction",&EnvManager::SetAction)
 		.def("GetReward",&EnvManager::GetReward)
 		.def("Steps",&EnvManager::Steps)
 		.def("StepsAtOnce",&EnvManager::StepsAtOnce)
@@ -273,5 +281,9 @@ BOOST_PYTHON_MODULE(pymss)
 		.def("GetMuscleTorques",&EnvManager::GetMuscleTorques)
 		.def("GetDesiredTorques",&EnvManager::GetDesiredTorques)
 		.def("SetActivationLevels",&EnvManager::SetActivationLevels)
-		.def("GetMuscleTuples",&EnvManager::GetMuscleTuples);
+		.def("ComputeMuscleTuples",&EnvManager::ComputeMuscleTuples)
+		.def("GetMuscleTuplesJtA",&EnvManager::GetMuscleTuplesJtA)
+		.def("GetMuscleTuplesTauDes",&EnvManager::GetMuscleTuplesTauDes)
+		.def("GetMuscleTuplesL",&EnvManager::GetMuscleTuplesL)
+		.def("GetMuscleTuplesb",&EnvManager::GetMuscleTuplesb);
 }

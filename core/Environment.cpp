@@ -126,7 +126,7 @@ Initialize()
 			num_total_related_dofs += m->GetNumRelatedDofs();
 		}
 		mCurrentMuscleTuple.JtA = Eigen::VectorXd::Zero(num_total_related_dofs);
-		mCurrentMuscleTuple.L = Eigen::MatrixXd::Zero(mNumActiveDof,mCharacter->GetMuscles().size());
+		mCurrentMuscleTuple.L = Eigen::VectorXd::Zero(mNumActiveDof*mCharacter->GetMuscles().size());
 		mCurrentMuscleTuple.b = Eigen::VectorXd::Zero(mNumActiveDof);
 		mCurrentMuscleTuple.tau_des = Eigen::VectorXd::Zero(mNumActiveDof);
 		mActivationLevels = Eigen::VectorXd::Zero(mCharacter->GetMuscles().size());
@@ -203,7 +203,13 @@ Step()
 			}
 
 			mCurrentMuscleTuple.JtA = GetMuscleTorques();
-			mCurrentMuscleTuple.L = JtA.block(mRootJointDof,0,n-mRootJointDof,m);
+			Eigen::MatrixXd L = JtA.block(mRootJointDof,0,n-mRootJointDof,m);
+			Eigen::VectorXd L_vectorized = Eigen::VectorXd((n-mRootJointDof)*m);
+			for(int i=0;i<n-mRootJointDof;i++)
+			{
+				L_vectorized.segment(i*m, m) = L.row(i);
+			}
+			mCurrentMuscleTuple.L = L_vectorized;
 			mCurrentMuscleTuple.b = Jtp.segment(mRootJointDof,n-mRootJointDof);
 			mCurrentMuscleTuple.tau_des = mDesiredTorque.tail(mDesiredTorque.rows()-mRootJointDof);
 			mMuscleTuples.push_back(mCurrentMuscleTuple);
@@ -291,7 +297,7 @@ GetState()
 {
 	auto& skel = mCharacter->GetSkeleton();
 	dart::dynamics::BodyNode* root = skel->getBodyNode(0);
-	int num_body_nodes = skel->getNumBodyNodes() - 1;
+	int num_body_nodes = skel->getNumBodyNodes();
 	Eigen::VectorXd p,v;
 
 	p.resize( (num_body_nodes-1)*3);

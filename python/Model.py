@@ -78,8 +78,8 @@ class MuscleNN(nn.Module):
 		torch.save(self.state_dict(),path)
 		
 	def get_activation(self,muscle_tau,tau):
-		act = self.forward(Tensor(muscle_tau.reshape(1,-1)),Tensor(tau.reshape(1,-1)))
-		return act.cpu().detach().numpy()
+		act = self.forward(Tensor(muscle_tau.reshape(1,-1).astype(np.float32)),Tensor(tau.reshape(1,-1).astype(np.float32)))
+		return act.cpu().detach().numpy().squeeze()
 		
 class SimulationNN(nn.Module):
 	def __init__(self,num_states,num_actions):
@@ -136,11 +136,11 @@ class SimulationNN(nn.Module):
 		torch.save(self.state_dict(),path)
 		
 	def get_action(self,s):
-		ts = torch.tensor(s)
+		ts = torch.tensor(s.astype(np.float32))
 		p,_ = self.forward(ts)
-		return p.loc.cpu().detach().numpy()
+		return p.loc.cpu().detach().numpy().squeeze()
 
 	def get_random_action(self,s):
-		ts = torch.tensor(s)
+		ts = torch.tensor(s.astype(np.float32))
 		p,_ = self.forward(ts)
-		return p.sample().cpu().detach().numpy()
+		return p.sample().cpu().detach().numpy().squeeze()

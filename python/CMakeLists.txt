@@ -13,9 +13,10 @@ if(OPENMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
-find_package(Boost 1.66.0 COMPONENTS filesystem python3 numpy3)
-find_package(DART REQUIRED COMPONENTS gui collision-bullet CONFIG)
+
+find_package(DART REQUIRED COMPONENTS collision-bullet CONFIG)
 find_package(PythonLibs REQUIRED)
+find_package(pybind11 REQUIRED)
 
 link_directories(../core/)
 include_directories(../core/)
@@ -23,12 +24,9 @@ include_directories(../core/)
 file(GLOB srcs "*.h" "*.cpp")
 
 include_directories(${PYTHON_INCLUDE_DIR})
-include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${DART_INCLUDE_DIRS})
-
-
 
 add_library(pymss SHARED ${srcs})
 
-target_link_libraries(pymss ${DART_LIBRARIES} ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} mss)
+target_link_libraries(pymss ${DART_LIBRARIES} ${PYTHON_LIBRARIES} mss pybind11::module)
 set_target_properties(pymss PROPERTIES PREFIX "" )

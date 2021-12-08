@@ -9,7 +9,7 @@ namespace MASS
 struct MuscleTuple
 {
 	Eigen::VectorXd JtA;
-	Eigen::MatrixXd L;
+	Eigen::VectorXd L;
 	Eigen::VectorXd b;
 	Eigen::VectorXd tau_des;
 };

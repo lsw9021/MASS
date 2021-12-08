@@ -17,8 +17,7 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 
 import numpy as np
-from pymss import EnvManager
-from IPython import embed
+import pymss
 from Model import *
 use_cuda = torch.cuda.is_available()
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
@@ -62,7 +61,7 @@ class PPO(object):
 	def __init__(self,meta_file):
 		np.random.seed(seed = int(time.time()))
 		self.num_slaves = 16
-		self.env = EnvManager(meta_file,self.num_slaves)
+		self.env = pymss.pymss(meta_file,self.num_slaves)
 		self.use_muscle = self.env.UseMuscle()
 		self.num_state = self.env.GetNumState()
 		self.num_action = self.env.GetNumAction()
@@ -85,7 +84,7 @@ class PPO(object):
 		self.batch_size = 128
 		self.muscle_batch_size = 128
 		self.replay_buffer = ReplayBuffer(30000)
-		self.muscle_buffer = MuscleBuffer(30000)
+		self.muscle_buffer = {}
 
 		self.model = SimulationNN(self.num_state,self.num_action)
 
@@ -135,7 +134,7 @@ class PPO(object):
 
 	def ComputeTDandGAE(self):
 		self.replay_buffer.Clear()
-		self.muscle_buffer.Clear()
+		self.muscle_buffer = {}
 		self.sum_return = 0.0
 		for epi in self.total_episodes:
 			data = epi.GetData()
@@ -164,9 +163,13 @@ class PPO(object):
 		print('SIM : {}'.format(self.num_tuple))
 		self.num_tuple_so_far += self.num_tuple
 
-		muscle_tuples = self.env.GetMuscleTuples()
-		for i in range(len(muscle_tuples)):
-			self.muscle_buffer.Push(muscle_tuples[i][0],muscle_tuples[i][1],muscle_tuples[i][2],muscle_tuples[i][3])
+		self.env.ComputeMuscleTuples()
+
+		self.muscle_buffer['JtA'] = self.env.GetMuscleTuplesJtA()
+		self.muscle_buffer['TauDes'] = self.env.GetMuscleTuplesTauDes()
+		self.muscle_buffer['L'] = self.env.GetMuscleTuplesL()
+		self.muscle_buffer['b'] = self.env.GetMuscleTuplesb()
+		print(self.muscle_buffer['JtA'].shape)
 	def GenerateTransitions(self):
 		self.total_episodes = []
 		states = [None]*self.num_slaves
@@ -265,20 +268,29 @@ class PPO(object):
 				self.optimizer.step()
 			print('Optimizing sim nn : {}/{}'.format(j+1,self.num_epochs),end='\r')
 		print('')
+
+	def generate_shuffle_indices(self, batch_size, minibatch_size):
+		n = batch_size
+		m = minibatch_size
+		p = np.random.permutation(n)
+
+		r = m - n%m
+		if r>0:
+			p = np.hstack([p,np.random.randint(0,n,r)])
+
+		p = p.reshape(-1,m)
+		return p
+
 	def OptimizeMuscleNN(self):
-		muscle_transitions = np.array(self.muscle_buffer.buffer)
 		for j in range(self.num_epochs_muscle):
-			np.random.shuffle(muscle_transitions)
-			for i in range(len(muscle_transitions)//self.muscle_batch_size):
-				tuples = muscle_transitions[i*self.muscle_batch_size:(i+1)*self.muscle_batch_size]
-				batch = MuscleTransition(*zip(*tuples))
+			minibatches = self.generate_shuffle_indices(self.muscle_buffer['JtA'].shape[0],self.muscle_batch_size)
 
-				stack_JtA = np.vstack(batch.JtA).astype(np.float32)
-				stack_tau_des = np.vstack(batch.tau_des).astype(np.float32)
-				stack_L = np.vstack(batch.L).astype(np.float32)
-
+			for minibatch in minibatches:
+				stack_JtA = self.muscle_buffer['JtA'][minibatch].astype(np.float32)
+				stack_tau_des =  self.muscle_buffer['TauDes'][minibatch].astype(np.float32)
+				stack_L = self.muscle_buffer['L'][minibatch].astype(np.float32)
 				stack_L = stack_L.reshape(self.muscle_batch_size,self.num_action,self.num_muscles)
-				stack_b = np.vstack(batch.b).astype(np.float32)
+				stack_b = self.muscle_buffer['b'][minibatch].astype(np.float32)
 
 				stack_JtA = Tensor(stack_JtA)
 				stack_tau_des = Tensor(stack_tau_des)
@@ -323,9 +335,9 @@ class PPO(object):
 		m = m - h*60
 		s = int((time.time() - self.tic))
 		s = s - h*3600 - m*60
-		if self.num_episode is 0:
+		if self.num_episode == 0:
 			self.num_episode = 1
-		if self.num_tuple is 0:
+		if self.num_tuple == 0:
 			self.num_tuple = 1
 		if self.max_return < self.sum_return/self.num_episode:
 			self.max_return = self.sum_return/self.num_episode

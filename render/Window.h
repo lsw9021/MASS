@@ -2,17 +2,17 @@
 #define __MASS_WINDOW_H__
 #include "dart/dart.hpp"
 #include "dart/gui/gui.hpp"
-#include <boost/python.hpp>
-#include <boost/python/numpy.hpp>
-
-namespace p = boost::python;
-namespace np = boost::python::numpy;
+#include <pybind11/pybind11.h>
+#include <pybind11/eigen.h>
+#include <pybind11/numpy.h>
+#include <pybind11/embed.h>
+namespace py = pybind11;
 
 namespace MASS
 {
 class Environment;
 class Muscle;
-class Window : public dart::gui::Win3D
+class Window : public dart::gui::glut::Win3D
 {
 public:
 	Window(Environment* env);
@@ -41,7 +41,8 @@ private:
 	Eigen::VectorXd GetActionFromNN();
 	Eigen::VectorXd GetActivationFromNN(const Eigen::VectorXd& mt);
 
-	p::object mm,mns,sys_module,nn_module,muscle_nn_module;
+	py::scoped_interpreter guard;
+	py::object mm,mns,sys_module,nn_module,muscle_nn_module;
 
 
 	Environment* mEnv;
