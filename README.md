@@ -19,6 +19,8 @@ Paper : http://mrl.snu.ac.kr/research/ProjectScalable/Paper.pdf
 
 ## How to install
 
+### To use Docker, follow the instructions provided at [Docker.md](./Docker.md)
+
 ### Install TinyXML, Eigen, OpenGL, assimp, Python3, etc...
 
 ```bash
