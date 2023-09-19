@@ -29,6 +29,8 @@ public:
 	void Initialize();
 	void Initialize(const std::string& meta_file,bool load_obj = false);
 public:
+	void ProsthesisControl();
+	void WriteActivation();
 	void Step();
 	void Reset(bool RSI = true);
 	bool IsEndOfEpisode();
@@ -49,7 +51,7 @@ public:
 	int GetNumState(){return mNumState;}
 	int GetNumAction(){return mNumActiveDof;}
 	int GetNumSteps(){return mSimulationHz/mControlHz;}
-	
+
 	const Eigen::VectorXd& GetActivationLevels(){return mActivationLevels;}
 	const Eigen::VectorXd& GetAverageActivationLevels(){return mAverageActivationLevels;}
 	void SetActivationLevels(const Eigen::VectorXd& a){mActivationLevels = a;}

@@ -9,6 +9,26 @@ using namespace dart::simulation;
 using namespace dart::dynamics;
 using namespace MASS;
 
+std::ofstream reward_file;
+std::ofstream activationlevel_file;
+
+
+
+double DL_old_length;
+double DL_length_diff = 0;
+double DM_old_length = 0;
+double DM_length_diff = 0;
+double PL_old_length = 0;
+double PL_length_diff = 0;
+double PM_old_length = 0;
+double PM_length_diff = 0;
+double old_time ;
+double time_diff = 0;
+double P_COM_x_diff = 0;
+double P_COM_x_old = 0;
+double P_COM_z_diff = 0;
+double P_COM_z_old = 0;
+
 Environment::
 Environment()
 	:mControlHz(30),mSimulationHz(900),mWorld(std::make_shared<World>()),mUseMuscle(true),w_q(0.65),w_v(0.1),w_ee(0.15),w_com(0.1)
@@ -40,7 +60,7 @@ Initialize(const std::string& meta_file,bool load_obj)
 		ss.str(str);
 		ss>>index;
 		if(!index.compare("use_muscle"))
-		{	
+		{
 			std::string str2;
 			ss>>str2;
 			if(!str2.compare("true"))
@@ -94,8 +114,8 @@ Initialize(const std::string& meta_file,bool load_obj)
 
 	}
 	ifs.close();
-	
-	
+
+
 	double kp = 300.0;
 	character->SetPDParameters(kp,sqrt(2*kp));
 	this->SetCharacter(character);
@@ -114,7 +134,7 @@ Initialize()
 	if(mCharacter->GetSkeleton()->getRootBodyNode()->getParentJoint()->getType()=="FreeJoint")
 		mRootJointDof = 6;
 	else if(mCharacter->GetSkeleton()->getRootBodyNode()->getParentJoint()->getType()=="PlanarJoint")
-		mRootJointDof = 3;	
+		mRootJointDof = 3;
 	else
 		mRootJointDof = 0;
 	mNumActiveDof = mCharacter->GetSkeleton()->getNumDofs()-mRootJointDof;
@@ -137,9 +157,25 @@ Initialize()
 	mWorld->addSkeleton(mCharacter->GetSkeleton());
 	mWorld->addSkeleton(mGround);
 	mAction = Eigen::VectorXd::Zero(mNumActiveDof);
-	
+
 	Reset(false);
 	mNumState = GetState().rows();
+
+
+	mCharacter->GetSkeleton()->getBodyNode("TibiaL")->getChildJoint(0)->setActuatorType(Joint::LOCKED);
+
+	reward_file.open ("reward_file.txt", std::ios::app);
+	activationlevel_file.open ("activationlevel_file.csv", std::ios::app);
+
+	int count2 = 0;
+	for(auto muscle : mCharacter->GetMuscles())
+	{
+		activationlevel_file<<mCharacter->GetMuscles()[count2++]->name<<",";
+	}
+	activationlevel_file<<std::endl;
+
+
+
 }
 void
 Environment::
@@ -150,7 +186,7 @@ Reset(bool RSI)
 	mCharacter->GetSkeleton()->clearConstraintImpulses();
 	mCharacter->GetSkeleton()->clearInternalForces();
 	mCharacter->GetSkeleton()->clearExternalForces();
-	
+
 	double t = 0.0;
 
 	if(RSI)
@@ -167,11 +203,42 @@ Reset(bool RSI)
 	mCharacter->GetSkeleton()->setPositions(mTargetPositions);
 	mCharacter->GetSkeleton()->setVelocities(mTargetVelocities);
 	mCharacter->GetSkeleton()->computeForwardKinematics(true,false,false);
+
+	reward_file.close();
+	activationlevel_file.close();
 }
+
+void
+Environment::
+ProsthesisControl()
+{
+
+	reward_file<<GetReward()<<std::endl;
+
+
+}
+
+void
+Environment::
+WriteActivation()
+{
+	int count1 = 0;
+	for(auto muscle : mCharacter->GetMuscles())
+	{
+		activationlevel_file<<mActivationLevels[count1++]<<",";
+
+	}
+	activationlevel_file<<std::endl;
+	//activationlevel_file<<mCharacter->GetMuscles()[0]->name<<",";
+
+}
+
+
+
 void
 Environment::
 Step()
-{	
+{
 	if(mUseMuscle)
 	{
 		int count = 0;
@@ -221,6 +288,104 @@ Step()
 		mCharacter->GetSkeleton()->setForces(mDesiredTorque);
 	}
 
+
+	//WriteActivation();
+
+	const double P_COM_x = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getCOM())(0);
+    const double P_COM = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getCOM())(1);
+    const double P_COM_z = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getCOM())(2);
+
+    const double DL = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getWorldTransform()*(Eigen::Vector3d(-0.0378,-0.0498, -0.0785)))(1);
+    const double DM = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getWorldTransform()*(Eigen::Vector3d(0.0378,-0.0498, -0.0785)))(1);
+    const double PL = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getWorldTransform()*(Eigen::Vector3d(-0.0378,-0.0498, 0.0785)))(1);
+    const double PM = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getWorldTransform()*(Eigen::Vector3d(0.0378,-0.0498, 0.0785)))(1);
+
+
+    const double DL_COM = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getWorldTransform()*(Eigen::Vector3d(-0.0378,0, -0.0785)))(1);
+    const double DM_COM = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getWorldTransform()*(Eigen::Vector3d(0.0378,0, -0.0785)))(1);
+    const double PL_COM = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getWorldTransform()*(Eigen::Vector3d(-0.0378,0, 0.0785)))(1);
+    const double PM_COM = (mCharacter->GetSkeleton()->getBodyNode("TalusL")->getWorldTransform()*(Eigen::Vector3d(0.0378,0, 0.0785)))(1);
+
+
+
+    //std::cout << "DL : " << DL << " DM :  " << DM << " PL : " << PL << " PM : "<< PM << std::endl;
+
+
+    const double P_Wall = 0.0;
+    const double k_stiffness = 3500;
+    const double b_damping = -3800;
+
+
+
+
+    if ( DL < P_Wall ){
+        Eigen::Vector3d spr_force_vec (0, 1, 0);
+        time_diff = mWorld->getTime()-old_time;
+        old_time = mWorld->getTime();
+        //std::cout<<" DL Force multiplier : "<< (P_Wall-DL)*0.0498*(1/(P_COM-DL))*k_stiffness << " Time_diff :"<< time_diff<<std::endl;
+        Eigen::Vector3d spr_force_loc_vec (  -0.0378, -0.0498, -0.0785);
+        DL_length_diff = (DL_old_length) -((P_Wall-DL)*0.0498*(1/(P_COM-DL)));
+        //std::cout<<" DL_old_length : " << DL_old_length<<std::endl;
+        DL_old_length = (P_Wall-DL)*0.0498*(1/(P_COM-DL));
+        //std::cout<<" DL Damping multiplier : "<< DL_length_diff*b_damping<<std::endl;
+        //std::cout<<" Total force : "<< DL_length_diff*b_damping+DL_old_length*k_stiffness<<std::endl;
+        //std::cout<<" DL_length_diff : "<< DL_length_diff<<" DL_current_length : " << DL_old_length<<std::endl;
+        mCharacter->GetSkeleton()->getBodyNode("TalusL")->addExtForce(spr_force_vec*DL_old_length*k_stiffness+spr_force_vec*DL_length_diff*b_damping, spr_force_loc_vec, true, true);
+
+    }
+    else {
+        DL_length_diff = 0;
+        P_COM_x_diff = 0;
+        P_COM_z_diff = 0;
+    }
+    if ( DM < P_Wall ){
+        Eigen::Vector3d spr_force_vec (0, 1, 0);
+        //std::cout<<" DM Force multiplier : "<< (P_Wall-DM)*0.0498*(1/(P_COM-DM))*k_stiffness <<std::endl;
+        Eigen::Vector3d spr_force_loc_vec (  0.0378, -0.0498, -0.0785);
+        DM_length_diff = DM_old_length-(P_Wall-DM)*0.0498*(1/(P_COM-DM));
+        DM_old_length = (P_Wall-DM)*0.0498*(1/(P_COM-DM));
+        mCharacter->GetSkeleton()->getBodyNode("TalusL")->addExtForce(spr_force_vec*DM_old_length*k_stiffness+spr_force_vec*DM_length_diff*b_damping, spr_force_loc_vec, true, true);
+    }
+    else {
+        DM_length_diff = 0;
+    }
+    if ( PL < P_Wall ){
+        Eigen::Vector3d spr_force_vec (0, 1, 0);
+        //std::cout<<" PL Force multiplier : "<< (P_Wall-PL)*0.0498*(1/(P_COM-PL))*k_stiffness <<std::endl;
+        Eigen::Vector3d spr_force_loc_vec (  -0.0378, -0.0498, 0.0785);
+        PL_length_diff = PL_old_length-(P_Wall-PL)*0.0498*(1/(P_COM-PL));
+        PL_old_length = (P_Wall-PL)*0.0498*(1/(P_COM-PL));
+        mCharacter->GetSkeleton()->getBodyNode("TalusL")->addExtForce(spr_force_vec*PL_old_length*k_stiffness+spr_force_vec*PL_length_diff*b_damping, spr_force_loc_vec, true, true);
+    }
+    else {
+        PL_length_diff = 0;
+    }
+    if ( PM < P_Wall ){
+        Eigen::Vector3d spr_force_vec (0, 1, 0);
+        Eigen::Vector3d spr_force_loc_vec (  0.0378, -0.0498, 0.0785);
+        PM_length_diff = PM_old_length-(P_Wall-PM)*0.0498*(1/(P_COM-PM));
+        PM_old_length = (P_Wall-PM)*0.0498*(1/(P_COM-PM));
+        //std::cout<<" PM Force multiplier : "<< (P_Wall-PM)*0.0498*(1/(P_COM-PM))*k_stiffness <<std::endl;
+        mCharacter->GetSkeleton()->getBodyNode("TalusL")->addExtForce(spr_force_vec*PM_old_length*k_stiffness+spr_force_vec*PM_length_diff*b_damping, spr_force_loc_vec, true, true);
+    }
+    else {
+        PM_length_diff = 0;
+    }
+    //std::cout<<" Time Out :" <<mWorld->getTime()<<std::endl;
+    //timeStepping();
+
+
+    P_COM_x_diff = P_COM_x - P_COM_x_old;
+    P_COM_x_old = P_COM_x;
+    P_COM_z_diff = P_COM_z - P_COM_z_old;
+    P_COM_z_old = P_COM_z;
+    Eigen::Vector3d friction_force_vec (P_COM_x_diff/(sqrt(pow(P_COM_x_diff, 2)+pow(P_COM_z_diff, 2))), 0, (P_COM_z_diff/(sqrt(pow(P_COM_x_diff, 2)+pow(P_COM_z_diff, 2)))));
+    mCharacter->GetSkeleton()->getBodyNode("TalusL")->addExtForce(Eigen::Vector3d (-100*P_COM_x_diff/(sqrt(pow(P_COM_x_diff, 2)+pow(P_COM_z_diff, 2))), 0, (-100*P_COM_z_diff/(sqrt(pow(P_COM_x_diff, 2)+pow(P_COM_z_diff, 2))))), Eigen::Vector3d (0, 0, 0), true,  true);
+
+
+
+
+
 	mWorld->step();
 	// Eigen::VectorXd p_des = mTargetPositions;
 	// //p_des.tail(mAction.rows()) += mAction;
@@ -228,7 +393,7 @@ Step()
 	// mCharacter->GetSkeleton()->setVelocities(mTargetVelocities);
 	// mCharacter->GetSkeleton()->computeForwardKinematics(true,false,false);
 	// mWorld->setTime(mWorld->getTime()+mWorld->getTimeStep());
-
+	//reward_file<<GetReward()<<std::endl;
 	mSimCount++;
 }
 
@@ -255,7 +420,7 @@ GetMuscleTorques()
 		mCurrentMuscleTuple.JtA.segment(index,JtA_i.rows()) = JtA_i;
 		index += JtA_i.rows();
 	}
-	
+
 	return mCurrentMuscleTuple.JtA;
 }
 double exp_of_squared(const Eigen::VectorXd& vec,double w)
@@ -277,7 +442,7 @@ Environment::
 IsEndOfEpisode()
 {
 	bool isTerminal = false;
-	
+
 	Eigen::VectorXd p = mCharacter->GetSkeleton()->getPositions();
 	Eigen::VectorXd v = mCharacter->GetSkeleton()->getVelocities();
 
@@ -288,10 +453,10 @@ IsEndOfEpisode()
 		isTerminal =true;
 	else if(mWorld->getTime()>10.0)
 		isTerminal =true;
-	
+
 	return isTerminal;
 }
-Eigen::VectorXd 
+Eigen::VectorXd
 Environment::
 GetState()
 {
@@ -308,7 +473,7 @@ GetState()
 		p.segment<3>(3*(i-1)) = skel->getBodyNode(i)->getCOM(root);
 		v.segment<3>(3*(i-1)) = skel->getBodyNode(i)->getCOMLinearVelocity();
 	}
-	
+
 	v.tail<3>() = root->getCOMLinearVelocity();
 
 	double t_phase = mCharacter->GetBVH()->GetMaxTime();
@@ -322,7 +487,7 @@ GetState()
 	state<<p,v,phi;
 	return state;
 }
-void 
+void
 Environment::
 SetAction(const Eigen::VectorXd& a)
 {
@@ -338,7 +503,7 @@ SetAction(const Eigen::VectorXd& a)
 	mRandomSampleIndex = rand()%(mSimulationHz/mControlHz);
 	mAverageActivationLevels.setZero();
 }
-double 
+double
 Environment::
 GetReward()
 {
